@@ -3,7 +3,7 @@
 #include <math.h>
 #include <string.h>
 
-//[xopt,fopt] = qcqp(n,H,f,m,A,b,p,Aeq,beq,q,Q,c,r)
+//[xopt,fopt] = qcqp(n,H,f,m,A,b,p,Aeq,beq,q,Q,c,r,lb,ub)
 
 struct problem
 {
@@ -108,7 +108,11 @@ void myevalh(int n, double *x, int *hrow, int *hcol, double *hval, int *hnnz,
    int i = 0;
    int j = 0;
 
-   *hnnz = n*n;
+   *hnnz = (n*(n+1))/2;
+   if( *hnnz > lim ) {
+     *lmem = 1;
+     return;
+   }
 
    for( int i =  0 ; i < n ; i++ ){
       hrow[i] = i;
@@ -127,6 +131,7 @@ void myevalc(int n, double *x, int ind, double *c, int *flag) {
 
    *flag = 0;
    int i = 0;
+   int j = 0;
    *c = 0;
    if(ind < problem.m){
       for( i = 0 ; i < n ; i++ ){
@@ -156,42 +161,37 @@ void myevalc(int n, double *x, int ind, double *c, int *flag) {
 
 void myevaljac(int n, double *x, int ind, int *jcvar, double *jcval,
 	       int *jcnnz, int lim, _Bool *lmem, int *flag) {
-
-   *flag = 0;
-   *lmem = 0;
-
-   if ( ind == 0 ) {
-     *jcnnz = 2;
-
-     if( *jcnnz > lim ) {
-       *lmem = 1;
-       return;
-     }
-
-     jcvar[0] = 0;
-     jcval[0] = 2.0 * x[0];
-
-     jcvar[1] = 1;
-     jcval[1] = - 1.0;
+  *flag = 0;
+  *lmem = 0;
+   int i = 0;
+   int j = 0;
+   
+   *jcnnz = n;
+   if( *jcnnz > lim ) {
+     *lmem = 1;
+     return;
    }
 
-   else if ( ind == 1 ) {
-     *jcnnz = 2;
-
-     if( *jcnnz > lim ) {
-       *lmem = 1;
-       return;
-     }
-
-     jcvar[0] = 0;
-     jcval[0] = - 1.0;
-
-     jcvar[1] = 1;
-     jcval[1] = - 1.0;
+   if(ind < problem.m){
+      for( i = 0 ; i < n ; i++ ){
+         jcvar[i]=i;
+         jcval[i] = problem.A[ind][i];
+      }
+   }else if(ind < problem.p){
+      for( i = 0 ; i < n ; i++ ){
+         jcvar[i]=i;
+         jcval[i] = problem.Aeq[ind-problem.m][i];
+      }
+   }else{
+      for( i = 0 ; i < n ; i++ ){
+         jcval[i] = 0;
+         jcvar[i]=i;
+         for( j = 0 ; j < n ; j++ ){
+               jcval[i] += problem.Q[i][j]*x[j];
+         }
+         jcval[i] += problem.Q[i][i]*x[i] + problem.c[i]; 
+      }
    }
-
-   else
-     *flag = -1;
 }
 
 /* ******************************************************************
@@ -200,28 +200,30 @@ void myevaljac(int n, double *x, int ind, int *jcvar, double *jcval,
 
 void myevalhc(int n, double *x, int ind, int *hcrow, int *hccol, double *hcval,
 	      int *hcnnz, int lim, _Bool *lmem, int *flag) {
-  
-   *flag = 0;
-   *lmem = 0;
-
-   if ( ind == 0 ) {
-     *hcnnz = 1;
-
-     if( *hcnnz > lim ) {
-       *lmem = 1;
-       return;
-     }
-
-     hcrow[0] = 0;
-     hccol[0] = 0;
-     hcval[0] = 2.0;
-   }
-
-   else if ( ind == 1 )
-     *hcnnz = 0;
-
-   else
-     *flag = -1;
+  *flag = 0;
+  *lmem = 0;
+   int i = 0;
+   int j = 0;
+   
+   
+   
+   if(ind < problem.m + problem.p){
+      *hcnnz = 0;
+   }else{
+      *hcnnz = (n*(n+1))/2;
+      if( *hcnnz > lim ) {
+        *lmem = 1;
+         return;
+      }
+      for( int i =  0 ; i < n ; i++ ){
+         hcrow[i] = i;
+         for( int j = 0 ; j <= i ; j++ ){
+            hccol[j] = j;
+            hcval[i+j] = 2*problem.Q[i][j];
+         }
+      }
+      
+   }  
 }
 
 /* *****************************************************************
