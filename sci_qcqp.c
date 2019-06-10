@@ -3,7 +3,7 @@
 #include <math.h>
 #include <string.h>
 
-//[xopt,fopt] = qcqp(x,H,f,m,A,b,p,Aeq,beq,q,Q,c,r,lb,ub)
+//[xopt,fopt] = qcqp(x,H,f,A,b,Aeq,beq,Q,c,r,lb,ub)
 
 struct problem
 {
