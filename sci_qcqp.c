@@ -2,12 +2,11 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
-/*
 #include "api_scilab.h"
 #include "Scierror.h"
 #include "BOOL.h"
 #include "localization.h"
- */
+
 
 //[xopt,fopt] = qcqp(x,H,f,A,b,Aeq,beq,Q,c,r,lb,ub)
 
