@@ -2,14 +2,16 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+/*
 #include "api_scilab.h"
 #include "Scierror.h"
 #include "BOOL.h"
 #include "localization.h"
+ */
 
 //[xopt,fopt] = qcqp(x,H,f,A,b,Aeq,beq,Q,c,r,lb,ub)
 
-struct problem
+struct prob
 {
 /* data */
 //initial point : x
@@ -21,13 +23,13 @@ double * f;
 int n;
 
 //Linear inequality constraint Ax <= b
-double * A; // m x n
+double ** A; // m x n
 double * b; // m x 1
 //No of Linear inequality Constraints
 int m;
 
 //Linear equality constraint Aeqx = b
-double * Aeq;  
+double ** Aeq;  
 double * beq;
 //No of Linear equality constraint 
 int p;
@@ -44,8 +46,7 @@ double * lb;
 double * ub;
 
 };
-
-extern problem;
+struct prob problem;
 
 void c_algencan(void *myevalf, void *myevalg, void *myevalh, void *myevalc,
 	void *myevaljac, void *myevalhc, void *myevalfc, void *myevalgjac,
@@ -60,8 +61,8 @@ void c_algencan(void *myevalf, void *myevalg, void *myevalh, void *myevalc,
 
 /**********************************************************************
    sci_gateway
-
- **********************************************************************/   
+************************************************************************/
+  
 static const char fname[] = "qcqp";
 /* ==================================================================== */
 int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, int nout, scilabVar* out)
@@ -161,8 +162,6 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
    
    m = problem.m + problem.p + problem.q;
   /* Memory allocation */
-  l      = (double *) malloc(problem.n * sizeof(double));
-  u      = (double *) malloc(problem.n * sizeof(double));
   lambda = (double *) malloc(m * sizeof(double));
   equatn = (_Bool  *) malloc(m * sizeof(_Bool ));
   linear = (_Bool  *) malloc(m * sizeof(_Bool ));
@@ -175,54 +174,49 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
     
   }
 
-  /* Initial point */
+  // Initial point 
   for(i = 0; i < n; i++) x[i] = 0.0;
     
-  /* For each constraint i, set equatn[i] = 1. if it is an equality
+  // For each constraint i, set equatn[i] = 1. if it is an equality
      constraint of the form c_i(x) = 0, and set equatn[i] = 0 if it is
-     an inequality constraint of the form c_i(x) <= 0. */
+     an inequality constraint of the form c_i(x) <= 0. 
   for( i = 0 ; i < m ; i++ ){
      equatn[i] = (i - problem.m) < problem.p && i >= problem.m ? 1 : 0;
    }
 
-  /* For each constraint i, set linear[i] = 1 if it is a linear
-     constraint, otherwise set linear[i] = 0 */
+  // For each constraint i, set linear[i] = 1 if it is a linear
+     constraint, otherwise set linear[i] = 0 
   for( i = 0 ; i < m ; i++ ){
      linear[i] = (i - problem.m) < problem.p && i >= problem.m ? 1 : 0;
    }
-  /* Lagrange multipliers approximation. */
+  // Lagrange multipliers approximation. 
   for( i = 0; i < m; i++ ) lambda[i] = 0.0;
   
-  /* In this C interface evalf, evalg, evalh, evalc, evaljac and
-     evalhc are present. evalfc, evalgjac, evalhl and evalhlp are
-     not. */
+   // In this C interface evalf, evalg, evalh, evalc, evaljac and
+   //   evalhc are present. evalfc, evalgjac, evalhl and evalhlp are
+   //   not. 
   
-  coded[0]  = 1; /* fsub     */
-  coded[1]  = 1; /* gsub     */
-  coded[2]  = 1; /* hsub     */
-  coded[3]  = 1; /* csub     */
-  coded[4]  = 1; /* jacsub   */
-  coded[5]  = 1; /* hcsub    */
-  coded[6]  = 0; /* fcsub    */
-  coded[7]  = 0; /* gjacsub  */
-  coded[8]  = 0; /* gjacpsub */
-  coded[9]  = 0; /* hlsub    */
-  coded[10] = 0; /* hlpsub   */
+  coded[0]  = 1; // fsub     
+  coded[1]  = 1; // gsub     
+  coded[2]  = 1; // hsub     
+  coded[3]  = 1; // csub     
+  coded[4]  = 1; // jacsub   
+  coded[5]  = 1; // hcsub    
+  coded[6]  = 0; // fcsub    
+  coded[7]  = 0; // gjacsub  
+  coded[8]  = 0; // gjacpsub 
+  coded[9]  = 0; // hlsub    
+  coded[10] = 0; // hlpsub   
  
-  /* Upper bounds on the number of sparse-matrices non-null
-     elements */
-  jcnnzmax = problem.n+1;
-  hnnzmax  = (problem.n*(problem.n+2))/2;
-  jcnnzmax = 0;
-  hnnzmax1 = 0;
-  hnnzmax2 = 1;
-  hnnzmax3 = 6;
-  hnnzmax  = hnnzmax1 + hnnzmax2 + hnnzmax3;
+  // Upper bounds on the number of sparse-matrices non-null
+     elements 
+  jcnnzmax = 2*problem.n*problem.n;
+  hnnzmax  = 2*problem.n*problem.n;
 
-  /* Check derivatives? */
+  // Check derivatives? 
   checkder = 0;
 
-  /* Parameters setting */
+  // Parameters setting 
   epsfeas = 1.0e-08;
   epsopt  = 1.0e-08;
   efstin  = sqrt( epsfeas );
@@ -235,10 +229,10 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
 
   nvparam = 1;
   
-  /* Allocates VPARAM array */
+  // Allocates VPARAM array 
   vparam = ( char ** ) malloc( nvparam * sizeof( char * ) );
 
-  /* Set algencan parameters */
+//   Set algencan parameters 
   vparam[0] = "ITERATIONS-OUTPUT-DETAIL 10";
 
    c_algencan(&myevalf,&myevalg,&myevalh,&myevalc,&myevaljac,&myevalhc,&myevalfc,
@@ -252,6 +246,8 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
 
    return 0;
 }
+
+
 
 /* ******************************************************************
     Objective Function. Must be Quadratic.
@@ -315,12 +311,13 @@ void myevalh(int n, double *x, int *hrow, int *hcol, double *hval, int *hnnz,
      *lmem = 1;
      return;
    }
-
+   int temp = 0;
    for( int i =  0 ; i < n ; i++ ){
-      hrow[i] = i;
       for( int j = 0 ; j <= i ; j++ ){
-         hcol[j] = j;
-         hval[i+j] = 2*problem.H[i][j];
+         hrow[temp] = i;
+         hcol[temp] = j;
+         hval[temp] = 2*problem.H[i][j];
+         temp++;
       }
    }
 }
@@ -338,11 +335,11 @@ void myevalc(int n, double *x, int ind, double *c, int *flag) {
    if(ind < problem.m){
       for( i = 0 ; i < n ; i++ ){
          *c += problem.A[ind][i] * x[i];
-      }
-   }else if(ind < problem.p){
+      } *c -= problem.b[ind];
+   }else if(ind < problem.m + problem.p){
       for( i = 0 ; i < n ; i++ ){
          *c += problem.Aeq[ind-problem.m][i] * x[i];
-      }
+      } *c = problem.beq[ind-problem.m];
    }else{
       for( i = 0 ; i < n ; i++ )
       {
@@ -354,6 +351,7 @@ void myevalc(int n, double *x, int ind, double *c, int *flag) {
       for( i = 0 ; i < n ; i++ ){
          *c += x[i]*problem.f[ind - problem.m - problem.p];
       }
+      *c -= problem.r[ind - problem.m - problem.p];
    }
 }
 
@@ -376,10 +374,10 @@ void myevaljac(int n, double *x, int ind, int *jcvar, double *jcval,
 
    if(ind < problem.m){
       for( i = 0 ; i < n ; i++ ){
-         jcvar[i]=i;
+         jcvar[i] = i;
          jcval[i] = problem.A[ind][i];
       }
-   }else if(ind < problem.p){
+   }else if(ind < problem.p+problem.m){
       for( i = 0 ; i < n ; i++ ){
          jcvar[i]=i;
          jcval[i] = problem.Aeq[ind-problem.m][i];
@@ -389,9 +387,9 @@ void myevaljac(int n, double *x, int ind, int *jcvar, double *jcval,
          jcval[i] = 0;
          jcvar[i]=i;
          for( j = 0 ; j < n ; j++ ){
-               jcval[i] += problem.Q[i][j]*x[j];
+               jcval[i] += problem.Q[ind-problem.m-problem.p][i][j]*x[j];
          }
-         jcval[i] += problem.Q[i][i]*x[i] + problem.c[i]; 
+         jcval[i] += problem.Q[ind-problem.m-problem.p][i][i]*x[i] + problem.c[ind-problem.m-problem.p][i]; 
       }
    }
 }
@@ -406,7 +404,7 @@ void myevalhc(int n, double *x, int ind, int *hcrow, int *hccol, double *hcval,
   *lmem = 0;
    int i = 0;
    int j = 0;
-   
+   int temp = 0;
    
    
    if(ind < problem.m + problem.p){
@@ -418,13 +416,13 @@ void myevalhc(int n, double *x, int ind, int *hcrow, int *hccol, double *hcval,
          return;
       }
       for( int i =  0 ; i < n ; i++ ){
-         hcrow[i] = i;
          for( int j = 0 ; j <= i ; j++ ){
-            hccol[j] = j;
-            hcval[i+j] = 2*problem.Q[i][j];
+            hcrow[temp] = i;
+            hccol[temp] = j;
+            hcval[temp] = 2*problem.Q[ind-problem.m-problem.p][i][j];
+            temp++;
          }
-      }
-      
+      }  
    }  
 }
 
@@ -474,112 +472,147 @@ void myevalhlp(int n, double *x, int m, double *lambda, double scalef,
    *flag = -1;
 }
 
-/* ******************************************************************
-   ****************************************************************** */
+// /* ******************************************************************
+      // Solving example using c_algencan
+      // Reference : http://www.minlplib.org/nvs11.p1.html
+//    ****************************************************************** */
 
-int main() {
-  _Bool  checkder;
-  int    hnnzmax,hnnzmax1,hnnzmax2,hnnzmax3,i,jcnnzmax,inform,m,n,nvparam,ncomp;
-  double cnorm,efacc,efstin,eoacc,eostin,epsfeas,epsopt,f,nlpsupn,snorm;
+// int main() {
+//    _Bool  checkder;
+//   int    hnnzmax,jcnnzmax,inform,nvparam,ncomp,m;
+//   double cnorm,efacc,efstin,eoacc,eostin,epsfeas,epsopt,f,nlpsupn,snorm;
   
-  char   *specfnm, *outputfnm, **vparam;
-  _Bool  coded[11],*equatn,*linear;
-  double *l,*lambda,*u,*x;
-  
-  n = 2;
-  m = 2;
-  
-  /* Memory allocation */
-  x      = (double *) malloc(n * sizeof(double));
-  l      = (double *) malloc(n * sizeof(double));
-  u      = (double *) malloc(n * sizeof(double));
-  lambda = (double *) malloc(m * sizeof(double));
-  equatn = (_Bool  *) malloc(m * sizeof(_Bool ));
-  linear = (_Bool  *) malloc(m * sizeof(_Bool ));
-  
-  if (     x == NULL ||      l == NULL ||      u == NULL ||
-      lambda == NULL || equatn == NULL || linear == NULL ) {
-    
-    printf( "\nC ERROR IN MAIN PROGRAM: It was not possible to allocate memory.\n" );
-    exit( 0 );
-    
-  }
+//   char   *specfnm, *outputfnm, **vparam;
+//   _Bool  coded[11],*equatn,*linear;
+//   double *l,*lambda,*u;
 
-  /* Initial point */
-  for(i = 0; i < n; i++) x[i] = 0.0;
-    
-  /* For each constraint i, set equatn[i] = 1. if it is an equality
-     constraint of the form c_i(x) = 0, and set equatn[i] = 0 if it is
-     an inequality constraint of the form c_i(x) <= 0. */
-  equatn[0] = 0;
-  equatn[1] = 0;
+//    int i = 0;
+//    int j = 0;
+//    int k = 0;
+//    int temp = 0;
+//    int temp1 = 0;
+//    double * Qtemp;
+   
+//    problem.n = 3;
+//    problem.m = 0;
+//    problem.p = 0;
+//    problem.q = 3;
 
-  /* For each constraint i, set linear[i] = 1 if it is a linear
-     constraint, otherwise set linear[i] = 0 */
-  linear[0] = 0;
-  linear[1] = 1;
+//    problem.H = (double * []){(double[]){7.0,0.0,-3.0},(double[]){0.0,6.0,2.0},(double[]){-3.0,2.0,8.0}};
+//    problem.f = (double[]){-15.8,-93.2,-63.0};
+
+//    problem.lb = (double[]){0.0,0.0,0.0};
+//    problem.ub = (double[]){200.0,200.0,200.0};
+//    problem.Q = (double**[]){(double*[]){(double[]){9.0,5.0,3.0},
+//                                        (double[]){5.0,8.0,5.0},
+//                                        (double[]){3.0,5.0,5.0}},
+//                            (double*[]){(double[]){6.0,4.0,1.0},
+//                                        (double[]){4.0,6.0,1.0},
+//                                        (double[]){1.0,1.0,4.0}},
+//                            (double*[]){(double[]){9.0,-1.0,0.0},
+//                                        (double[]){-1.0,6.0,-1},
+//                                        (double[]){0.0,-1.0,8.0}}};
+//    problem.c = (double*[]){(double[]){0.0,0.0,0.0},(double[]){0.0,0.0,0,0},(double[]){0.0,0.0,0.0}};
+//    problem.r = (double[]){1000.0,550.0,340.0};
+
+//     m = problem.m + problem.p + problem.q;
+//   /* Memory allocation */
+//   problem.x = (double *) malloc(problem.n * sizeof(double)); 
+//   lambda = (double *) malloc(m * sizeof(double));
+//   equatn = (_Bool  *) malloc(m * sizeof(_Bool ));
+//   linear = (_Bool  *) malloc(m * sizeof(_Bool ));
   
-  /* Lagrange multipliers approximation. */
-  for( i = 0; i < m; i++ ) lambda[i] = 0.0;
+//   if (     problem.x == NULL ||      l == NULL ||      u == NULL ||
+//       lambda == NULL || equatn == NULL || linear == NULL ) {
+    
+//     printf( "\nC ERROR IN MAIN PROGRAM: It was not possible to allocate memory.\n" );
+//     exit( 0 );
+    
+//   }
+
+//   /* Initial point */
+//   //for(i = 0; i < problem.n; i++) problem.x[i] = 1.0;
+//   problem.x[0] = 2.18;
+//   problem.x[1] = 6.94;
+//   problem.x[2] = 2.99;
+    
+//   /* For each constraint i, set equatn[i] = 1. if it is an equality
+//      constraint of the form c_i(x) = 0, and set equatn[i] = 0 if it is
+//      an inequality constraint of the form c_i(x) <= 0. */
+//   for( i = 0 ; i < m ; i++ ){
+//      equatn[i] = (i - problem.m) < problem.p && i >= problem.m ? 1 : 0;
+//    }
+
+//   /* For each constraint i, set linear[i] = 1 if it is a linear
+//      constraint, otherwise set linear[i] = 0 */
+//   for( i = 0 ; i < m ; i++ ){
+//      linear[i] = i - problem.m + problem.p < 1 ? 1 : 0;
+//    }
+//   /* Lagrange multipliers approximation. */
+//   for( i = 0; i < m; i++ ) lambda[i] = 0.0;
   
-  /* In this C interface evalf, evalg, evalh, evalc, evaljac and
-     evalhc are present. evalfc, evalgjac, evalhl and evalhlp are
-     not. */
+//   /* In this C interface evalf, evalg, evalh, evalc, evaljac and
+//      evalhc are present. evalfc, evalgjac, evalhl and evalhlp are
+//      not. */
   
-  coded[0]  = 1; /* fsub     */
-  coded[1]  = 1; /* gsub     */
-  coded[2]  = 1; /* hsub     */
-  coded[3]  = 1; /* csub     */
-  coded[4]  = 1; /* jacsub   */
-  coded[5]  = 1; /* hcsub    */
-  coded[6]  = 0; /* fcsub    */
-  coded[7]  = 0; /* gjacsub  */
-  coded[8]  = 0; /* gjacpsub */
-  coded[9]  = 0; /* hlsub    */
-  coded[10] = 0; /* hlpsub   */
+//   coded[0]  = 1; /* fsub     */
+//   coded[1]  = 1; /* gsub     */
+//   coded[2]  = 1; /* hsub     */
+//   coded[3]  = 1; /* csub     */
+//   coded[4]  = 1; /* jacsub   */
+//   coded[5]  = 1; /* hcsub    */
+//   coded[6]  = 0; /* fcsub    */
+//   coded[7]  = 0; /* gjacsub  */
+//   coded[8]  = 0; /* gjacpsub */
+//   coded[9]  = 0; /* hlsub    */
+//   coded[10] = 0; /* hlpsub   */
  
-  /* Upper bounds on the number of sparse-matrices non-null
-     elements */
-  jcnnzmax = 0;
-  hnnzmax1 = 0;
-  hnnzmax2 = 1;
-  hnnzmax3 = 6;
-  hnnzmax  = hnnzmax1 + hnnzmax2 + hnnzmax3;
+//   /* Upper bounds on the number of sparse-matrices non-null
+//      elements */
+//   jcnnzmax = 2*problem.n*problem.n;
+//   hnnzmax  = 2*problem.n*problem.n;
 
-  /* Check derivatives? */
-  checkder = 0;
 
-  /* Parameters setting */
-  epsfeas = 1.0e-08;
-  epsopt  = 1.0e-08;
-  efstin  = sqrt( epsfeas );
-  eostin  = pow( epsopt, 1.5 );
-  efacc   = sqrt( epsfeas );
-  eoacc   = sqrt( epsopt );
+//   /* Check derivatives? */
+//   checkder = 0;
 
-  outputfnm = "algencan.out";
-  specfnm   = "";
+//   /* Parameters setting */
+//   epsfeas = 1.0e-08; 
+//   epsopt  = 1.0e-08;
+//   efstin  = sqrt( epsfeas );
+//   eostin  = pow( epsopt, 1.5 );
+//   efacc   = sqrt( epsfeas );
+//   eoacc   = sqrt( epsopt );
 
-  nvparam = 1;
+//   outputfnm = "algencan.out";
+//   specfnm   = "";
+
+//   nvparam = 1;
   
-  /* Allocates VPARAM array */
-  vparam = ( char ** ) malloc( nvparam * sizeof( char * ) );
+//   /* Allocates VPARAM array */
+//   vparam = ( char ** ) malloc( nvparam * sizeof( char * ) );
 
-  /* Set algencan parameters */
-  vparam[0] = "ITERATIONS-OUTPUT-DETAIL 10";
+//   /* Set algencan parameters */
+//   vparam[0] = "ITERATIONS-OUTPUT-DETAIL 10";
 
-  /* Optimize */
-  c_algencan(&myevalf,&myevalg,&myevalh,&myevalc,&myevaljac,&myevalhc,&myevalfc,
-	     &myevalgjac,&myevalgjacp,&myevalhl,&myevalhlp,jcnnzmax,hnnzmax,
-	     &epsfeas,&epsopt,&efstin,&eostin,&efacc,&eoacc,outputfnm,specfnm,
-	     nvparam,vparam,problem.n,x,problem.lb,problem.ub,(problem.m+problem.p+problem.q),lambda,equatn,linear,coded,checkder,
-	     &f,&cnorm,&snorm,&nlpsupn,&inform);
+//    c_algencan(&myevalf,&myevalg,&myevalh,&myevalc,&myevaljac,&myevalhc,&myevalfc,
+// 	     &myevalgjac,&myevalgjacp,&myevalhl,&myevalhlp,jcnnzmax,hnnzmax,
+// 	     &epsfeas,&epsopt,&efstin,&eostin,&efacc,&eoacc,outputfnm,specfnm,
+// 	     nvparam,vparam,problem.n,problem.x,problem.lb,problem.ub,m,lambda,equatn,linear,coded,checkder,
+// 	     &f,&cnorm,&snorm,&nlpsupn,&inform);
 
-  /* Memory deallocation */
-  free(x     );
-  free(l     );
-  free(u     );
-  free(lambda);
-  free(equatn);
-  free(linear);
-}
+
+//   // scilab_setDoubleArray(env,out[0],&problem.x);
+//    //scilab_setDoubleArray(env,out[1],&f);
+
+//   /* Memory deallocation */
+//   printf("\nOptimal Solution at ");
+//   for(i = 0 ; i < problem.n ; i++){
+//      printf("%f ",problem.x[i]);
+//   }
+//   printf("\n");
+
+//   free(lambda);
+//   free(equatn);
+//   free(linear);
+// }
