@@ -81,19 +81,43 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
    double * Qtemp;
 
    if(nin!=12){
-      Scierror(999,"%s : Wrong number of inputs, 12 expected",fname);
+      Scierror(999,"%s : Wrong number of inputs, %d expected",fname,12);
       return 1;
    }
+    
+    if(nout!=2){
+        Scierror(999,"%s : Wrong number of output argument, %d expected",fname,2);
+        return 1;
+    }
 
-   scilab_getDim2d(env,in[0],&problem.n,&temp);
-   scilab_setDoubleArray(env,in[0],&problem.x);
-   scilab_setDoubleArray(env,in[1],&Qtemp);
-   for(i = 0 ; i < problem.n ; i++){
+    if( scilab_isDouble(env, in[0]) == 0 || scilab_isMatrix2d(env, in[0]) == 0  ) {
+        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,1);
+        return 1;
+    }
+    
+    scilab_getDim2d(env,in[0],&problem.n,&temp);
+    scilab_getDoubleArray(env,in[0],&problem.x);
+    
+    if( scilab_isDouble(env, in[1]) == 0 || scilab_isMatrix2d(env, in[1]) == 0  ) {
+        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,2);
+        return 1;
+    }
+    
+    scilab_getDoubleArray(env,in[1],&Qtemp);
+    
+    if( scilab_isDouble(env, in[1]) == 0 || scilab_isMatrix2d(env, in[1]) == 0  ) {
+        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,2);
+        return 1;
+    }
+    
+    scilab_getDoubleArray(env,in[2],&problem.f);
+    
+    for(i = 0 ; i < problem.n ; i++){
       for(j = 0 ; j < problem.n ; j++){
          problem.H[j][i] = Qtemp[j+i];
       }
-   }
-   scilab_setDoubleArray(env,in[2],&problem.f);
+    }
+   
 
    scilab_getDim2d(env,in[3],&problem.m,&temp);
    scilab_setDoubleArray(env,in[3],&Qtemp);
