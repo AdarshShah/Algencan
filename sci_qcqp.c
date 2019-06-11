@@ -21,19 +21,19 @@ double * f;
 int n;
 
 //Linear inequality constraint Ax <= b
-double * A;
-double * b;
+double * A; // m x n
+double * b; // m x 1
 //No of Linear inequality Constraints
 int m;
 
 //Linear equality constraint Aeqx = b
-double * Aeq;
+double * Aeq;  
 double * beq;
 //No of Linear equality constraint 
 int p;
 
 //Quadratic inequality constraint x'Qx + c'x <= r
-double *** Q;
+double *** Q; 
 double ** c;
 double *r; 
 //No of Quadratic Constraint
@@ -114,7 +114,7 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
     
     for(i = 0 ; i < problem.n ; i++){
       for(j = 0 ; j < problem.n ; j++){
-         problem.H[j][i] = Qtemp[j+i];
+         problem.H[j][i] = Qtemp[j+problem.n*i];
       }
    }
    scilab_getDoubleArray(env,in[2],&problem.f);
@@ -123,7 +123,7 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
    scilab_getDoubleArray(env,in[3],&Qtemp);
    for(i = 0 ; i < problem.n ; i++){
       for(j = 0 ; j < problem.m ; j++){
-         problem.A[j][i] = Qtemp[j+i];
+         problem.A[j][i] = Qtemp[j+problem.m*i];
       }
    }
    scilab_getDoubleArray(env,in[4],&problem.b);
@@ -132,7 +132,7 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
    scilab_getDoubleArray(env,in[5],&Qtemp);
    for(i = 0 ; i < problem.n ; i++){
       for(j = 0 ; j < problem.p ; j++){
-         problem.Aeq[j][i] = Qtemp[j+i];
+         problem.Aeq[j][i] = Qtemp[j+problem.p*i];
       }
    }
    scilab_getDoubleArray(env,in[6],&problem.beq);
@@ -142,14 +142,14 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
    for(i = 0 ; i < problem.n ; i++){
       for(j = 0 ; j < problem.n ; j++){
          for(k = 0 ; k < problem.q ; k++){
-            problem.Q[k][j][i] = Qtemp[k+j+i];
+            problem.Q[k][j][i] = Qtemp[k+problem.n*(j+problem.n*i)];
          }
       }
    }
    scilab_getDoubleArray(env,in[8],&Qtemp);
    for(i = 0 ; i < problem.n ; i++){
       for(j = 0 ; j < problem.q ; j++){
-         problem.c[j][i] = Qtemp[j+i];
+         problem.c[j][i] = Qtemp[j+problem.q*i];
       }
    }
    scilab_getDoubleArray(env,in[9],&problem.r);
