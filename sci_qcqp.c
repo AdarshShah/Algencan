@@ -91,18 +91,16 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
         return 1;
     }
 
-    if( scilab_isDouble(env, in[0]) == 0 || scilab_isMatrix2d(env, in[0]) == 0  ) {
-        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,1);
+   for(i = 0 ; i < 12 ; i++){
+      if( (scilab_isDouble(env, in[i]) == 0 || scilab_isMatrix2d(env, in[i]) == 0) && i != 7  ) {
+        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,i+1);
         return 1;
-    }
+      }
+   }
+    
     
     scilab_getDim2d(env,in[0],&problem.n,&temp);
     scilab_getDoubleArray(env,in[0],&problem.x);
-    
-    if( scilab_isDouble(env, in[1]) == 0 || scilab_isMatrix2d(env, in[1]) == 0  ) {
-        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,2);
-        return 1;
-    }
     
     scilab_getDoubleArray(env,in[1],&Qtemp);
     for(i = 0 ; i < problem.n ; i++){
@@ -111,17 +109,8 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
         }
     }
     
-    if( scilab_isDouble(env, in[2]) == 0 || scilab_isMatrix2d(env, in[2]) == 0  ) {
-        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,3);
-        return 1;
-    }
+     scilab_getDoubleArray(env,in[2],&problem.f);
     
-    scilab_getDoubleArray(env,in[2],&problem.f);
-    
-    if( scilab_isDouble(env, in[3]) == 0 || scilab_isMatrix2d(env, in[3]) == 0  ) {
-        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,4);
-        return 1;
-    }
     scilab_getDim2d(env,in[3],&problem.m,&temp);
     scilab_getDoubleArray(env,in[3],&Qtemp);
     
@@ -166,20 +155,6 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
       }
     }
     
-    if( scilab_isDouble(env, in[9]) == 0 || scilab_isMatrix2d(env, in[9]) == 0  ) {
-        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,10);
-        return 1;
-    }
-    
-    if( scilab_isDouble(env, in[10]) == 0 || scilab_isMatrix2d(env, in[10]) == 0  ) {
-        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,11);
-        return 1;
-    }
-    
-    if( scilab_isDouble(env, in[11]) == 0 || scilab_isMatrix2d(env, in[11]) == 0  ) {
-        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,12);
-        return 1;
-    }
     scilab_getDoubleArray(env,in[9],&problem.r);
     scilab_getDoubleArray(env,in[10],&problem.lb);
     scilab_getDoubleArray(env,in[11],&problem.ub);
