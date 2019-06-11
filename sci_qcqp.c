@@ -21,19 +21,19 @@ double * f;
 int n;
 
 //Linear inequality constraint Ax <= b
-double * A;
-double * b;
+double * A; // m x n
+double * b; // m x 1
 //No of Linear inequality Constraints
 int m;
 
 //Linear equality constraint Aeqx = b
-double * Aeq;
+double * Aeq;  
 double * beq;
 //No of Linear equality constraint 
 int p;
 
 //Quadratic inequality constraint x'Qx + c'x <= r
-double *** Q;
+double *** Q; 
 double ** c;
 double *r; 
 //No of Quadratic Constraint
@@ -126,55 +126,43 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
     scilab_getDoubleArray(env,in[3],&Qtemp);
     
     for(i = 0 ; i < problem.n ; i++){
-      for(j = 0 ; j < problem.m ; j++){
-         problem.A[j][i] = Qtemp[j+i];
+      for(j = 0 ; j < problem.n ; j++){
+         problem.H[j][i] = Qtemp[j+problem.n*i];
       }
-    }
-   
-    if( scilab_isDouble(env, in[4]) == 0 || scilab_isMatrix2d(env, in[4]) == 0  ) {
-        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,5);
-        return 1;
-    }
-    scilab_getDoubleArray(env,in[4],&problem.b);
+   }
+   scilab_getDoubleArray(env,in[2],&problem.f);
 
-    if( scilab_isDouble(env, in[5]) == 0 || scilab_isMatrix2d(env, in[5]) == 0  ) {
-        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,6);
-        return 1;
-    }
-    
-    scilab_getDim2d(env,in[5],&problem.p,&temp);
-    scilab_getDoubleArray(env,in[5],&Qtemp);
-    
-    for(i = 0 ; i < problem.n ; i++){
-        for(j = 0 ; j < problem.p ; j++){
-            problem.Aeq[j][i] = Qtemp[j+i];
-        }
-    }
-    
-    if( scilab_isDouble(env, in[6]) == 0 || scilab_isMatrix2d(env, in[6]) == 0  ) {
-        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,7);
-        return 1;
-    }
-    scilab_getDoubleArray(env,in[6],&problem.beq);
-    
-    if( scilab_isDouble(env, in[8]) == 0 || scilab_isMatrix2d(env, in[8]) == 0  ) {
-        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,9);
-        return 1;
-    }
-    
-    scilab_getDim2d(env,in[8],&problem.q,&temp);
-    scilab_getDoubleArray(env,in[7],&Qtemp);
-    for(i = 0 ; i < problem.n ; i++){
+   scilab_getDim2d(env,in[3],&problem.m,&temp);
+   scilab_getDoubleArray(env,in[3],&Qtemp);
+   for(i = 0 ; i < problem.n ; i++){
+      for(j = 0 ; j < problem.m ; j++){
+         problem.A[j][i] = Qtemp[j+problem.m*i];
+      }
+   }
+   scilab_getDoubleArray(env,in[4],&problem.b);
+
+   scilab_getDim2d(env,in[5],&problem.p,&temp);
+   scilab_getDoubleArray(env,in[5],&Qtemp);
+   for(i = 0 ; i < problem.n ; i++){
+      for(j = 0 ; j < problem.p ; j++){
+         problem.Aeq[j][i] = Qtemp[j+problem.p*i];
+      }
+   }
+   scilab_getDoubleArray(env,in[6],&problem.beq);
+
+   scilab_getDim2d(env,in[8],&problem.q,&temp);
+   scilab_getDoubleArray(env,in[7],&Qtemp);
+   for(i = 0 ; i < problem.n ; i++){
       for(j = 0 ; j < problem.n ; j++){
          for(k = 0 ; k < problem.q ; k++){
-            problem.Q[k][j][i] = Qtemp[k+j+i];
+            problem.Q[k][j][i] = Qtemp[k+problem.n*(j+problem.n*i)];
          }
       }
     }
     scilab_getDoubleArray(env,in[8],&Qtemp);
     for(i = 0 ; i < problem.n ; i++){
       for(j = 0 ; j < problem.q ; j++){
-         problem.c[j][i] = Qtemp[j+i];
+         problem.c[j][i] = Qtemp[j+problem.q*i];
       }
     }
     
