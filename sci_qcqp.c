@@ -57,8 +57,14 @@ void c_algencan(void *myevalf, void *myevalg, void *myevalh, void *myevalc,
 	_Bool *linear, _Bool *coded, _Bool checkder, double *f,
 	double *cnorm, double *snorm, double *nlpsupn,int *inform);
 
+
+/**********************************************************************
+   sci_gateway
+************************************************************************/
+  
 static const char fname[] = "qcqp";
 /* ==================================================================== */
+
 
 
 
@@ -285,11 +291,9 @@ void myevalhlp(int n, double *x, int m, double *lambda, double scalef,
    *flag = -1;
 }
 
-
-/**********************************************************************
-   sci_gateway
-************************************************************************/
-  
+// ***************************************************************************************************
+// sci_gateway
+// ***************************************************************************************************
 
 int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, int nout, scilabVar* out)
 {
@@ -331,13 +335,13 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
     
     scilab_getDoubleArray(env,in[1],&Qtemp);
 
-    problem.H = (double**)malloc(sizeof(double*)*problem.n);
+    problem.H = (double **)malloc(sizeof(double*)*problem.n);
     for(i = 0 ; i < problem.n ; i++){
-       problem.H[i] = (double*)malloc(sizeof(double)*problem.n);
+       problem.H[i] = (double *)malloc(sizeof(double)*problem.n);
     }
     for(i = 0 ; i < problem.n ; i++){
         for(j = 0 ; j < problem.n ; j++){
-            problem.H[j][i] = Qtemp[j+i];
+            problem.H[j][i] = Qtemp[j+problem.n*i];
         }
     }
     
@@ -346,9 +350,9 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
    scilab_getDim2d(env,in[3],&problem.m,&temp);
    scilab_getDoubleArray(env,in[3],&Qtemp);
 
-   problem.A = (double**)malloc(sizeof(double*)*problem.m);
+   problem.A = (double **)malloc(sizeof(double*)*problem.m);
    for(i = 0 ; i < problem.m ; i++){
-      problem.A[i] = (double*)malloc(sizeof(double)*problem.n);
+      problem.A[i] = (double *)malloc(sizeof(double)*problem.n);
    }
    scilab_getDoubleArray(env,in[3],&Qtemp);
 
@@ -360,9 +364,9 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
    scilab_getDoubleArray(env,in[4],&problem.b);
 
    scilab_getDim2d(env,in[5],&problem.p,&temp);
-   problem.Aeq = (double**)malloc(sizeof(double*)*problem.p);
+   problem.Aeq = (double **)malloc(sizeof(double*)*problem.p);
    for(i = 0 ; i < problem.p ; i++){
-       problem.Aeq[i] = (double*)malloc(sizeof(double)*problem.n);
+       problem.Aeq[i] = (double *)malloc(sizeof(double)*problem.n);
    }
    scilab_getDoubleArray(env,in[5],&Qtemp);
    for(i = 0 ; i < problem.n ; i++){
@@ -375,11 +379,14 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
    scilab_getDim2d(env,in[8],&problem.q,&temp);
    scilab_getDoubleArray(env,in[7],&Qtemp);
 
-   problem.Q = (double***)malloc(sizeof(double**)*problem.q);
+   problem.Q = (double ***)malloc(sizeof(double**)*problem.q);
     for(i = 0 ; i < problem.q ; i++){
-      problem.Q[i] = (double**)malloc(sizeof(double*)*problem.n);
-      for(j = 0 ; j < problem.n ; j++){
-          problem.Q[i][j] = (double*)malloc(sizeof(double)*problem.n);
+      problem.Q[i] = (double **)malloc(sizeof(double*)*problem.n);
+    }
+
+    for(i = 0 ; i < problem.q ; i++){
+       for(j = 0 ; j < problem.n ; j++){
+          problem.Q[i][j] = (double *)malloc(sizeof(double)*problem.n);
       }
     }
 
@@ -392,9 +399,9 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
     }
     scilab_getDoubleArray(env,in[8],&Qtemp);
 
-    problem.c = (double**)malloc(sizeof(double*)*problem.q);
+    problem.c = (double **)malloc(sizeof(double*)*problem.q);
     for(i = 0 ; i < problem.q ; i++){
-       problem.c[i] = (double*)malloc(sizeof(double)*problem.n);
+       problem.c[i] = (double *)malloc(sizeof(double)*problem.n);
     }
     for(i = 0 ; i < problem.n ; i++){
       for(j = 0 ; j < problem.q ; j++){
@@ -412,24 +419,23 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
   equatn = (_Bool  *) malloc(m * sizeof(_Bool ));
   linear = (_Bool  *) malloc(m * sizeof(_Bool ));
   
-  if (     problem.x == NULL ||      l == NULL ||      u == NULL ||
-      lambda == NULL || equatn == NULL || linear == NULL ) {
+  if (     problem.x == NULL || lambda == NULL || equatn == NULL || linear == NULL ) {
     
     printf( "\nC ERROR IN MAIN PROGRAM: It was not possible to allocate memory.\n" );
     exit( 0 );
     
-  }
-//  // For each constraint i, set equatn[i] = 1. if it is an equality
-//      constraint of the form c_i(x) = 0, and set equatn[i] = 0 if it is
-//      an inequality constraint of the form c_i(x) <= 0. 
-//   for( i = 0 ; i < m ; i++ ){
+  }  
+  /* For each constraint i, set equatn[i] = 1. if it is an equality
+     constraint of the form c_i(x) = 0, and set equatn[i] = 0 if it is
+     an inequality constraint of the form c_i(x) <= 0. */
+  for( i = 0 ; i < m ; i++ ){
      equatn[i] = (i - problem.m) < problem.p && i >= problem.m ? 1 : 0;
    }
 
-  // For each constraint i, set linear[i] = 1 if it is a linear
-     constraint, otherwise set linear[i] = 0 
+  /* For each constraint i, set linear[i] = 1 if it is a linear
+     constraint, otherwise set linear[i] = 0 */
   for( i = 0 ; i < m ; i++ ){
-     linear[i] = (i - problem.m) < problem.p && i >= problem.m ? 1 : 0;
+     linear[i] = i < problem.m + problem.p ? 1 : 0;
    }
   // Lagrange multipliers approximation. 
   for( i = 0; i < m; i++ ) lambda[i] = 0.0;
@@ -450,9 +456,8 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
   coded[9]  = 0; // hlsub    
   coded[10] = 0; // hlpsub   
  
-//   // Upper bounds on the number of sparse-matrices non-null
-//      elements 
-   jcnnzmax = 2*problem.n*problem.n;
+  // Upper bounds on the number of sparse-matrices non-null elements 
+  jcnnzmax = 2*problem.n*problem.n;
   hnnzmax  = 2*problem.n*problem.n;
 
   // Check derivatives? 
@@ -488,6 +493,8 @@ int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, in
 
    return 0;
 }
+
+
 
 
 // /* ******************************************************************
