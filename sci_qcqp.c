@@ -57,194 +57,8 @@ void c_algencan(void *myevalf, void *myevalg, void *myevalh, void *myevalc,
 	_Bool *linear, _Bool *coded, _Bool checkder, double *f,
 	double *cnorm, double *snorm, double *nlpsupn,int *inform);
 
-
-/**********************************************************************
-   sci_gateway
-************************************************************************/
-  
 static const char fname[] = "qcqp";
 /* ==================================================================== */
-int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, int nout, scilabVar* out)
-{
-   _Bool  checkder;
-  int    hnnzmax,jcnnzmax,inform,nvparam,ncomp,m;
-  double cnorm,efacc,efstin,eoacc,eostin,epsfeas,epsopt,f,nlpsupn,snorm;
-  
-  char   *specfnm, *outputfnm, **vparam;
-  _Bool  coded[11],*equatn,*linear;
-  double *l,*lambda,*u;
-
-   int i = 0;
-   int j = 0;
-   int k = 0;
-   int temp = 0;
-   int temp1 = 0;
-   double * Qtemp;
-
-   if(nin!=12){
-      Scierror(999,"%s : Wrong number of inputs, %d expected",fname,12);
-      return 1;
-   }
-    
-    if(nout!=2){
-        Scierror(999,"%s : Wrong number of output argument, %d expected",fname,2);
-        return 1;
-    }
-
-   for(i = 0 ; i < 12 ; i++){
-      if( (scilab_isDouble(env, in[i]) == 0 || scilab_isMatrix2d(env, in[i]) == 0) && i != 7  ) {
-        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,i+1);
-        return 1;
-      }
-   }
-    
-    
-    scilab_getDim2d(env,in[0],&problem.n,&temp);
-    scilab_getDoubleArray(env,in[0],&problem.x);
-    
-    scilab_getDoubleArray(env,in[1],&Qtemp);
-    for(i = 0 ; i < problem.n ; i++){
-        for(j = 0 ; j < problem.n ; j++){
-            problem.H[j][i] = Qtemp[j+i];
-        }
-    }
-    
-     scilab_getDoubleArray(env,in[2],&problem.f);
-    
-    scilab_getDim2d(env,in[3],&problem.m,&temp);
-    scilab_getDoubleArray(env,in[3],&Qtemp);
-    
-    for(i = 0 ; i < problem.n ; i++){
-      for(j = 0 ; j < problem.n ; j++){
-         problem.H[j][i] = Qtemp[j+problem.n*i];
-      }
-   }
-   scilab_getDoubleArray(env,in[2],&problem.f);
-
-   scilab_getDim2d(env,in[3],&problem.m,&temp);
-   scilab_getDoubleArray(env,in[3],&Qtemp);
-   for(i = 0 ; i < problem.n ; i++){
-      for(j = 0 ; j < problem.m ; j++){
-         problem.A[j][i] = Qtemp[j+problem.m*i];
-      }
-   }
-   scilab_getDoubleArray(env,in[4],&problem.b);
-
-   scilab_getDim2d(env,in[5],&problem.p,&temp);
-   scilab_getDoubleArray(env,in[5],&Qtemp);
-   for(i = 0 ; i < problem.n ; i++){
-      for(j = 0 ; j < problem.p ; j++){
-         problem.Aeq[j][i] = Qtemp[j+problem.p*i];
-      }
-   }
-   scilab_getDoubleArray(env,in[6],&problem.beq);
-
-   scilab_getDim2d(env,in[8],&problem.q,&temp);
-   scilab_getDoubleArray(env,in[7],&Qtemp);
-   for(i = 0 ; i < problem.n ; i++){
-      for(j = 0 ; j < problem.n ; j++){
-         for(k = 0 ; k < problem.q ; k++){
-            problem.Q[k][j][i] = Qtemp[k+problem.n*(j+problem.n*i)];
-         }
-      }
-    }
-    scilab_getDoubleArray(env,in[8],&Qtemp);
-    for(i = 0 ; i < problem.n ; i++){
-      for(j = 0 ; j < problem.q ; j++){
-         problem.c[j][i] = Qtemp[j+problem.q*i];
-      }
-    }
-    
-    scilab_getDoubleArray(env,in[9],&problem.r);
-    scilab_getDoubleArray(env,in[10],&problem.lb);
-    scilab_getDoubleArray(env,in[11],&problem.ub);
-   
-   m = problem.m + problem.p + problem.q;
-  /* Memory allocation */
-  lambda = (double *) malloc(m * sizeof(double));
-  equatn = (_Bool  *) malloc(m * sizeof(_Bool ));
-  linear = (_Bool  *) malloc(m * sizeof(_Bool ));
-  
-  if (     problem.x == NULL ||      l == NULL ||      u == NULL ||
-      lambda == NULL || equatn == NULL || linear == NULL ) {
-    
-    printf( "\nC ERROR IN MAIN PROGRAM: It was not possible to allocate memory.\n" );
-    exit( 0 );
-    
-  }
-
-  // Initial point 
-  for(i = 0; i < n; i++) x[i] = 0.0;
-    
-  // For each constraint i, set equatn[i] = 1. if it is an equality
-     constraint of the form c_i(x) = 0, and set equatn[i] = 0 if it is
-     an inequality constraint of the form c_i(x) <= 0. 
-  for( i = 0 ; i < m ; i++ ){
-     equatn[i] = (i - problem.m) < problem.p && i >= problem.m ? 1 : 0;
-   }
-
-  // For each constraint i, set linear[i] = 1 if it is a linear
-     constraint, otherwise set linear[i] = 0 
-  for( i = 0 ; i < m ; i++ ){
-     linear[i] = (i - problem.m) < problem.p && i >= problem.m ? 1 : 0;
-   }
-  // Lagrange multipliers approximation. 
-  for( i = 0; i < m; i++ ) lambda[i] = 0.0;
-  
-   // In this C interface evalf, evalg, evalh, evalc, evaljac and
-   //   evalhc are present. evalfc, evalgjac, evalhl and evalhlp are
-   //   not. 
-  
-  coded[0]  = 1; // fsub     
-  coded[1]  = 1; // gsub     
-  coded[2]  = 1; // hsub     
-  coded[3]  = 1; // csub     
-  coded[4]  = 1; // jacsub   
-  coded[5]  = 1; // hcsub    
-  coded[6]  = 0; // fcsub    
-  coded[7]  = 0; // gjacsub  
-  coded[8]  = 0; // gjacpsub 
-  coded[9]  = 0; // hlsub    
-  coded[10] = 0; // hlpsub   
- 
-  // Upper bounds on the number of sparse-matrices non-null
-     elements 
-  jcnnzmax = 2*problem.n*problem.n;
-  hnnzmax  = 2*problem.n*problem.n;
-
-  // Check derivatives? 
-  checkder = 0;
-
-  // Parameters setting 
-  epsfeas = 1.0e-08;
-  epsopt  = 1.0e-08;
-  efstin  = sqrt( epsfeas );
-  eostin  = pow( epsopt, 1.5 );
-  efacc   = sqrt( epsfeas );
-  eoacc   = sqrt( epsopt );
-
-  outputfnm = "algencan.out";
-  specfnm   = "";
-
-  nvparam = 1;
-  
-  // Allocates VPARAM array 
-  vparam = ( char ** ) malloc( nvparam * sizeof( char * ) );
-
-//   Set algencan parameters 
-  vparam[0] = "ITERATIONS-OUTPUT-DETAIL 10";
-
-   c_algencan(&myevalf,&myevalg,&myevalh,&myevalc,&myevaljac,&myevalhc,&myevalfc,
-	     &myevalgjac,&myevalgjacp,&myevalhl,&myevalhlp,jcnnzmax,hnnzmax,
-	     &epsfeas,&epsopt,&efstin,&eostin,&efacc,&eoacc,outputfnm,specfnm,
-	     nvparam,vparam,problem.n,problem.x,problem.lb,problem.ub,m,lambda,equatn,linear,coded,checkder,
-	     &f,&cnorm,&snorm,&nlpsupn,&inform);
-
-   scilab_setDoubleArray(env,out[0],&problem.x);
-   scilab_setDoubleArray(env,out[1],&f);
-
-   return 0;
-}
 
 
 
@@ -470,6 +284,211 @@ void myevalhlp(int n, double *x, int m, double *lambda, double scalef,
 
    *flag = -1;
 }
+
+
+/**********************************************************************
+   sci_gateway
+************************************************************************/
+  
+
+int sci_qcqp(scilabEnv env, int nin, scilabVar* in, int nopt, scilabOpt* opt, int nout, scilabVar* out)
+{
+   _Bool  checkder;
+  int    hnnzmax,jcnnzmax,inform,nvparam,ncomp,m;
+  double cnorm,efacc,efstin,eoacc,eostin,epsfeas,epsopt,f,nlpsupn,snorm;
+  
+  char   *specfnm, *outputfnm, **vparam;
+  _Bool  coded[11],*equatn,*linear;
+  double *l,*lambda,*u;
+
+   int i = 0;
+   int j = 0;
+   int k = 0;
+   int temp = 0;
+   int temp1 = 0;
+   double * Qtemp;
+
+   if(nin!=12){
+      Scierror(999,"%s : Wrong number of inputs, %d expected",fname,12);
+      return 1;
+   }
+    
+    if(nout!=2){
+        Scierror(999,"%s : Wrong number of output argument, %d expected",fname,2);
+        return 1;
+    }
+
+   for(i = 0 ; i < 12 ; i++){
+      if( (scilab_isDouble(env, in[i]) == 0 || scilab_isMatrix2d(env, in[i]) == 0) && i != 7  ) {
+        Scierror(999,"%s : Wrong type for input argument %d, A double Matrix expected",fname,i+1);
+        return 1;
+      }
+   }
+    
+    
+    scilab_getDim2d(env,in[0],&problem.n,&temp);
+    scilab_getDoubleArray(env,in[0],&problem.x);
+    
+    scilab_getDoubleArray(env,in[1],&Qtemp);
+
+    problem.H = (double**)malloc(sizeof(double*)*problem.n);
+    for(i = 0 ; i < problem.n ; i++){
+       problem.H[i] = (double*)malloc(sizeof(double)*problem.n);
+    }
+    for(i = 0 ; i < problem.n ; i++){
+        for(j = 0 ; j < problem.n ; j++){
+            problem.H[j][i] = Qtemp[j+i];
+        }
+    }
+    
+   scilab_getDoubleArray(env,in[2],&problem.f);
+    
+   scilab_getDim2d(env,in[3],&problem.m,&temp);
+   scilab_getDoubleArray(env,in[3],&Qtemp);
+
+   problem.A = (double**)malloc(sizeof(double*)*problem.m);
+   for(i = 0 ; i < problem.m ; i++){
+      problem.A[i] = (double*)malloc(sizeof(double)*problem.n);
+   }
+   scilab_getDoubleArray(env,in[3],&Qtemp);
+
+   for(i = 0 ; i < problem.n ; i++){
+      for(j = 0 ; j < problem.m ; j++){
+         problem.A[j][i] = Qtemp[j+problem.m*i];
+      }
+   }
+   scilab_getDoubleArray(env,in[4],&problem.b);
+
+   scilab_getDim2d(env,in[5],&problem.p,&temp);
+   problem.Aeq = (double**)malloc(sizeof(double*)*problem.p);
+   for(i = 0 ; i < problem.p ; i++){
+       problem.Aeq[i] = (double*)malloc(sizeof(double)*problem.n);
+   }
+   scilab_getDoubleArray(env,in[5],&Qtemp);
+   for(i = 0 ; i < problem.n ; i++){
+      for(j = 0 ; j < problem.p ; j++){
+         problem.Aeq[j][i] = Qtemp[j+problem.p*i];
+      }
+   }
+   scilab_getDoubleArray(env,in[6],&problem.beq);
+
+   scilab_getDim2d(env,in[8],&problem.q,&temp);
+   scilab_getDoubleArray(env,in[7],&Qtemp);
+
+   problem.Q = (double***)malloc(sizeof(double**)*problem.q);
+    for(i = 0 ; i < problem.q ; i++){
+      problem.Q[i] = (double**)malloc(sizeof(double*)*problem.n);
+      for(j = 0 ; j < problem.n ; j++){
+          problem.Q[i][j] = (double*)malloc(sizeof(double)*problem.n);
+      }
+    }
+
+   for(i = 0 ; i < problem.q ; i++){
+      for(j = 0 ; j < problem.n ; j++){
+         for(k = 0 ; k < problem.n ; k++){
+            problem.Q[i][k][j] = Qtemp[k+problem.n*(j+problem.n*i) ];
+         }
+      }
+    }
+    scilab_getDoubleArray(env,in[8],&Qtemp);
+
+    problem.c = (double**)malloc(sizeof(double*)*problem.q);
+    for(i = 0 ; i < problem.q ; i++){
+       problem.c[i] = (double*)malloc(sizeof(double)*problem.n);
+    }
+    for(i = 0 ; i < problem.n ; i++){
+      for(j = 0 ; j < problem.q ; j++){
+         problem.c[j][i] = Qtemp[j+problem.q*i];
+      }
+    }
+    
+    scilab_getDoubleArray(env,in[9],&problem.r);
+    scilab_getDoubleArray(env,in[10],&problem.lb);
+    scilab_getDoubleArray(env,in[11],&problem.ub);
+   
+   m = problem.m + problem.p + problem.q;
+  /* Memory allocation */
+  lambda = (double *) malloc(m * sizeof(double));
+  equatn = (_Bool  *) malloc(m * sizeof(_Bool ));
+  linear = (_Bool  *) malloc(m * sizeof(_Bool ));
+  
+  if (     problem.x == NULL ||      l == NULL ||      u == NULL ||
+      lambda == NULL || equatn == NULL || linear == NULL ) {
+    
+    printf( "\nC ERROR IN MAIN PROGRAM: It was not possible to allocate memory.\n" );
+    exit( 0 );
+    
+  }
+//  // For each constraint i, set equatn[i] = 1. if it is an equality
+//      constraint of the form c_i(x) = 0, and set equatn[i] = 0 if it is
+//      an inequality constraint of the form c_i(x) <= 0. 
+//   for( i = 0 ; i < m ; i++ ){
+     equatn[i] = (i - problem.m) < problem.p && i >= problem.m ? 1 : 0;
+   }
+
+  // For each constraint i, set linear[i] = 1 if it is a linear
+     constraint, otherwise set linear[i] = 0 
+  for( i = 0 ; i < m ; i++ ){
+     linear[i] = (i - problem.m) < problem.p && i >= problem.m ? 1 : 0;
+   }
+  // Lagrange multipliers approximation. 
+  for( i = 0; i < m; i++ ) lambda[i] = 0.0;
+  
+   // In this C interface evalf, evalg, evalh, evalc, evaljac and
+   //   evalhc are present. evalfc, evalgjac, evalhl and evalhlp are
+   //   not. 
+  
+  coded[0]  = 1; // fsub     
+  coded[1]  = 1; // gsub     
+  coded[2]  = 1; // hsub     
+  coded[3]  = 1; // csub     
+  coded[4]  = 1; // jacsub   
+  coded[5]  = 1; // hcsub    
+  coded[6]  = 0; // fcsub    
+  coded[7]  = 0; // gjacsub  
+  coded[8]  = 0; // gjacpsub 
+  coded[9]  = 0; // hlsub    
+  coded[10] = 0; // hlpsub   
+ 
+//   // Upper bounds on the number of sparse-matrices non-null
+//      elements 
+   jcnnzmax = 2*problem.n*problem.n;
+  hnnzmax  = 2*problem.n*problem.n;
+
+  // Check derivatives? 
+  checkder = 0;
+
+  // Parameters setting 
+  epsfeas = 1.0e-08;
+  epsopt  = 1.0e-08;
+  efstin  = sqrt( epsfeas );
+  eostin  = pow( epsopt, 1.5 );
+  efacc   = sqrt( epsfeas );
+  eoacc   = sqrt( epsopt );
+
+  outputfnm = "algencan.out";
+  specfnm   = "";
+
+  nvparam = 1;
+  
+  // Allocates VPARAM array 
+  vparam = ( char ** ) malloc( nvparam * sizeof( char * ) );
+
+//   Set algencan parameters 
+  vparam[0] = "ITERATIONS-OUTPUT-DETAIL 10";
+
+   c_algencan(&myevalf,&myevalg,&myevalh,&myevalc,&myevaljac,&myevalhc,&myevalfc,
+	     &myevalgjac,&myevalgjacp,&myevalhl,&myevalhlp,jcnnzmax,hnnzmax,
+	     &epsfeas,&epsopt,&efstin,&eostin,&efacc,&eoacc,outputfnm,specfnm,
+	     nvparam,vparam,problem.n,problem.x,problem.lb,problem.ub,m,lambda,equatn,linear,coded,checkder,
+	     &f,&cnorm,&snorm,&nlpsupn,&inform);
+
+   scilab_setDoubleArray(env,out[0],&problem.x);
+   scilab_setDoubleArray(env,out[1],&f);
+
+   return 0;
+}
+
 
 // /* ******************************************************************
       // Solving example using c_algencan
